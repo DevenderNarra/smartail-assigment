@@ -96,10 +96,8 @@ jobs:
           script: |
             echo "🚀 Deploying Smartail containers on VM..."
             cd /home/${{ secrets.VM_USER }}/smartail-assignment
-            docker rm -f cricket-frontend || true
-            docker rm -f cricket-backend || true
-            docker-compose down || true
-            IMAGE_TAG=${{ github.run_number }} DOCKER_USER=${{ secrets.DOCKER_USERNAME }} docker-compose up -d --build --force-recreate --remove-orphans
+            docker-compose pull
+            docker-compose up -d --force-recreate --remove-orphans
             echo "✅ Deployment completed successfully!"
 
       # ----------------- Docker Logout -----------------
