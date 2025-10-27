@@ -1,0 +1,89 @@
+pipeline {
+    agent any
+    triggers { githubPush() }
+    environment {
+        DOCKERHUB_CREDENTIALS = credentials('docker')
+        DOCKER_USER = "${DOCKERHUB_CREDENTIALS_USR}"
+        DOCKER_PASS = "${DOCKERHUB_CREDENTIALS_PSW}"
+        IMAGE_TAG   = "${env.BUILD_NUMBER}"
+    }
+
+    stages {
+        stage('Clean Workspace & Checkout') {
+            steps {
+                cleanWs()
+                git branch: 'main', url: 'https://github.com/DevenderNarra/smartail-assigment.git'
+            }
+        }
+
+        stage('Prepare Backend .env') {
+            steps {
+                sh '''
+                cat > backend/.env <<EOL
+MONGO_URL=mongodb+srv://Satvik:Satvik%40310706@satvik.melxkhp.mongodb.net/?retryWrites=true&w=majority&appName=satvik
+DB_NAME=cricket_db
+JWT_SECRET=supersecretkey123
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=300
+EOL
+                '''
+            }
+        }
+
+        stage('Docker Login') {
+            steps {
+                sh 'echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin'
+            }
+        }
+
+        stage('Remove Old Containers & Images') {
+            steps {
+                sh '''
+                    # remove running containers (if any)
+                    docker rm -f cricket-frontend || true
+                    docker rm -f cricket-backend || true
+
+                    # remove any local images for the frontend/backend repo (all tags)
+                    docker images --filter=reference="${DOCKER_USER}/smartail-frontend*" -q | xargs -r docker rmi -f || true
+                    docker images --filter=reference="${DOCKER_USER}/smartail-backend*" -q | xargs -r docker rmi -f || true
+
+                    # remove any dangling images to free space
+                    docker images -f "dangling=true" -q | xargs -r docker rmi -f || true
+                '''
+            }
+        }
+
+        stage('Build Images') {
+            steps {
+                sh """
+                    docker build --no-cache -t $DOCKER_USER/smartail-frontend:${IMAGE_TAG} ./frontend
+                    docker build --no-cache -t $DOCKER_USER/smartail-backend:${IMAGE_TAG} ./backend
+                """
+            }
+        }
+
+        stage('Push Images to DockerHub') {
+            steps {
+                sh """
+                    docker push $DOCKER_USER/smartail-frontend:${IMAGE_TAG}
+                    docker push $DOCKER_USER/smartail-backend:${IMAGE_TAG}
+                """
+            }
+        }
+
+        stage('Deploy Containers') {
+            steps {
+                sh '''
+                    docker-compose down || true
+                    IMAGE_TAG=${IMAGE_TAG} DOCKER_USER=${DOCKER_USER} docker-compose up -d --build --force-recreate --remove-orphans
+                '''
+            }
+        }
+    }
+
+    post {
+        always {
+            sh 'docker logout || true'
+        }
+    }
+}

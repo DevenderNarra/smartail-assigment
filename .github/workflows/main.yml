@@ -1,0 +1,105 @@
+name: Smartail 3-Tier CI/CD
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      IMAGE_TAG: ${{ github.run_number }}
+      MONGO_URL: "mongodb+srv://Satvik:Satvik%40310706@satvik.melxkhp.mongodb.net/?retryWrites=true&w=majority&appName=satvik"
+      DB_NAME: "cricket_db"
+      JWT_SECRET: "supersecretkey123"
+      JWT_ALGORITHM: "HS256"
+      ACCESS_TOKEN_EXPIRE_MINUTES: "300"
+
+    steps:
+      # ----------------- Checkout -----------------
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # ----------------- Connect to VM and Pull Latest Repo -----------------
+      - name: Sync Project on VM
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_KEY }}
+          script: |
+            echo "📦 Syncing latest code on server..."
+            cd /home/${{ secrets.VM_USER }}
+            if [ ! -d "smartail-assignment" ]; then
+              git clone https://github.com/DevenderNarra/smartail-assigment.git
+            fi
+            cd smartail-assignment
+            git fetch origin main
+            git reset --hard origin/main
+            echo "✅ Code updated successfully on VM."
+
+      # ----------------- Prepare Backend .env -----------------
+      - name: Prepare Backend .env
+        run: |
+          echo "🧩 Creating backend environment file..."
+          cat > backend/.env <<EOL
+          MONGO_URL=${MONGO_URL}
+          DB_NAME=${DB_NAME}
+          JWT_SECRET=${JWT_SECRET}
+          JWT_ALGORITHM=${JWT_ALGORITHM}
+          ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
+          EOL
+
+      # ----------------- Docker Login -----------------
+      - name: Docker Login
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # ----------------- Clean Old Containers and Images -----------------
+      - name: Remove Old Containers and Images
+        run: |
+          echo "🧹 Cleaning old containers and images..."
+          docker rm -f cricket-frontend || true
+          docker rm -f cricket-backend || true
+          docker images --filter=reference="${{ secrets.DOCKER_USERNAME }}/smartail-frontend*" -q | xargs -r docker rmi -f || true
+          docker images --filter=reference="${{ secrets.DOCKER_USERNAME }}/smartail-backend*" -q | xargs -r docker rmi -f || true
+          docker images -f "dangling=true" -q | xargs -r docker rmi -f || true
+
+      # ----------------- Build Docker Images -----------------
+      - name: Build Docker Images
+        run: |
+          echo "🏗️ Building Docker images..."
+          docker build --no-cache -t ${{ secrets.DOCKER_USERNAME }}/smartail-frontend:${IMAGE_TAG} ./frontend
+          docker build --no-cache -t ${{ secrets.DOCKER_USERNAME }}/smartail-backend:${IMAGE_TAG} ./backend
+
+      # ----------------- Push Docker Images -----------------
+      - name: Push Docker Images
+        run: |
+          echo "📤 Pushing Docker images to DockerHub..."
+          docker push ${{ secrets.DOCKER_USERNAME }}/smartail-frontend:${IMAGE_TAG}
+          docker push ${{ secrets.DOCKER_USERNAME }}/smartail-backend:${IMAGE_TAG}
+
+      # ----------------- Deploy on VM via SSH -----------------
+      - name: Deploy on VM via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_KEY }}
+          script: |
+            echo "🚀 Deploying Smartail containers on VM..."
+            cd /home/${{ secrets.VM_USER }}/smartail-assignment
+            docker rm -f cricket-frontend || true
+            docker rm -f cricket-backend || true
+            docker-compose down || true
+            IMAGE_TAG=${{ github.run_number }} DOCKER_USER=${{ secrets.DOCKER_USERNAME }} docker-compose up -d --build --force-recreate --remove-orphans
+            echo "✅ Deployment completed successfully!"
+
+      # ----------------- Docker Logout -----------------
+      - name: Docker Logout
+        if: always()
+        run: docker logout || true

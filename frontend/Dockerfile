@@ -12,7 +12,7 @@ COPY . .
 RUN npm run build
 
 # --- Stage 2: Serve with Node.js ---
-FROM node:20-alpine AS production
+FROM node:20-alpine AS production       
 
 WORKDIR /app
 
