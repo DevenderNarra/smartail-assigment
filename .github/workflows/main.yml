@@ -32,12 +32,15 @@ jobs:
           script: |
             echo "📦 Syncing latest code on server..."
             cd /home/${{ secrets.VM_USER }}
-            if [ ! -d "smartail-assignment" ]; then
-              git clone https://github.com/DevenderNarra/smartail-assigment.git
+            if [ -d "smartail-assigment/.git" ]; then
+            cd smartail-assigment
+                git fetch origin main
+                git reset --hard origin/main
+            else
+               rm -rf smartail-assigment
+               git clone https://github.com/DevenderNarra/smartail-assigment.git
+               cd smartail-assigment
             fi
-            cd smartail-assignment
-            git fetch origin main
-            git reset --hard origin/main
             echo "✅ Code updated successfully on VM."
 
       # ----------------- Prepare Backend .env -----------------
