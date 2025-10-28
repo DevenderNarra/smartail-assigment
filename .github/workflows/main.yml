@@ -10,7 +10,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout latest code (optional, mainly for workflow context)
       - name: Checkout Code
         uses: actions/checkout@v4
 
