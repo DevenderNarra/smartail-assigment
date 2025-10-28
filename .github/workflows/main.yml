@@ -96,7 +96,8 @@ jobs:
           script: |
             echo "🚀 Deploying Smartail containers on VM..."
             cd /home/${{ secrets.VM_USER }}/smartail-assignment
-            docker-compose pull
+            docker-compose down
+            docker-compose build --no-cache
             docker-compose up -d --force-recreate --remove-orphans
             echo "✅ Deployment completed successfully!"
 
