@@ -1,28 +1,33 @@
-name: Smartail CI/CD
+name: Deploy to Server
 
 on:
   push:
-    branches: ["main"]
-  workflow_dispatch:
+    branches:
+      - main  # Trigger deployment on push to main branch
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      # SSH into the server and deploy
-      - name: SSH Deploy & Build on Server
+      - name: Setup SSH key
+        uses: webfactory/ssh-agent@v0.8.1
+        with:
+          ssh-private-key: ${{ secrets.VM_KEY }}
+
+      - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VM_HOST }}
           username: ${{ secrets.VM_USER }}
+          port: 22
           key: ${{ secrets.VM_KEY }}
           script: |
             echo "📦 Pulling latest code..."
-            cd /home/${{ secrets.VM_USER }}/smartail-assigment
+            cd /home/ubuntu/smartail-assigment
             if [ -d ".git" ]; then
               git fetch origin main
               git reset --hard origin/main
@@ -30,11 +35,11 @@ jobs:
               git clone https://github.com/DevenderNarra/smartail-assigment.git .
             fi
 
-            echo "🧹 Removing old containers..."
+            echo "🧹 Stopping old containers..."
             sudo docker-compose down
 
             echo "🏗️ Building new containers..."
-            sudo docker-compose build --no-cache
+            sudo DOCKER_BUILDKIT=1 docker-compose build --no-cache
 
             echo "🚀 Starting containers..."
             sudo docker-compose up -d --force-recreate --remove-orphans
