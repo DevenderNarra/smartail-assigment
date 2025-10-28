@@ -1,3 +1,5 @@
+name: Smartail CI/CD
+
 on:
   push:
     branches: ["main"]
@@ -7,18 +9,12 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
-    env:
-      DOCKER_USER: ${{ secrets.DOCKER_USERNAME }}
-      DOCKER_PASS: ${{ secrets.DOCKER_PASSWORD }}
-
     steps:
-      # Checkout Latest Code
+      # Checkout latest code (optional, mainly for workflow context)
       - name: Checkout Code
         uses: actions/checkout@v4
-        with:
-          ref: main
 
-      # Deploy & Build on Server
+      # SSH into the server and deploy
       - name: SSH Deploy & Build on Server
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -35,26 +31,13 @@ jobs:
               git clone https://github.com/DevenderNarra/smartail-assigment.git .
             fi
 
-            echo "🧹 Removing old containers and images..."
-            docker rm -f cricket-frontend || true
-            docker rm -f cricket-backend || true
-            docker images --filter=reference="${DOCKER_USER}/smartail-frontend*" -q | xargs -r docker rmi -f || true
-            docker images --filter=reference="${DOCKER_USER}/smartail-backend*" -q | xargs -r docker rmi -f || true
-            docker images -f "dangling=true" -q | xargs -r docker rmi -f
+            echo "🧹 Removing old containers..."
+            docker-compose down
 
-            echo "🔐 Docker login..."
-            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+            echo "🏗️ Building new containers..."
+            docker-compose build --no-cache
 
-            echo "🏗️ Building Docker images..."
-            docker build --no-cache -t $DOCKER_USER/smartail-frontend:latest ./frontend
-            docker build --no-cache -t $DOCKER_USER/smartail-backend:latest ./backend
-
-            echo "📤 Pushing Docker images..."
-            docker push $DOCKER_USER/smartail-frontend:latest
-            docker push $DOCKER_USER/smartail-backend:latest
-
-            echo "🚀 Deploying containers..."
+            echo "🚀 Starting containers..."
             docker-compose up -d --force-recreate --remove-orphans
 
-            echo "🔐 Docker logout..."
-            docker logout || true
+            echo "✅ Deployment completed!"
