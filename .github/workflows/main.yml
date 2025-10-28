@@ -26,14 +26,17 @@ jobs:
           port: 22
           key: ${{ secrets.VM_KEY }}
           script: |
+            set -e
             echo "📦 Pulling latest code..."
             cd /home/ubuntu/smartail-assigment
             if [ -d ".git" ]; then
-              git fetch origin main
+              git fetch --all
               git reset --hard origin/main
+              git clean -fd
             else
               git clone https://github.com/DevenderNarra/smartail-assigment.git .
             fi
+            git log -1 --oneline
 
             echo "🧹 Stopping old containers..."
             sudo docker-compose down
