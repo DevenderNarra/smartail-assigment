@@ -3,7 +3,7 @@ name: Deploy to Server
 on:
   push:
     branches:
-      - main  # Trigger deployment on push to main branch
+      - main  
 
 jobs:
   deploy:
@@ -27,7 +27,7 @@ jobs:
           key: ${{ secrets.VM_KEY }}
           script: |
             set -e
-            echo "📦 Pulling latest code..."
+            echo "Pulling latest code..."
             cd /home/ubuntu/smartail-assigment
             if [ -d ".git" ]; then
               git fetch --all
@@ -38,13 +38,13 @@ jobs:
             fi
             git log -1 --oneline
 
-            echo "🧹 Stopping old containers..."
+            echo "Stopping old containers..."
             sudo docker-compose down
 
-            echo "🏗️ Building new containers..."
+            echo "Building new containers..."
             sudo docker-compose build --no-cache
 
-            echo "🚀 Starting containers..."
+            echo "Starting containers..."
             sudo docker-compose up -d --force-recreate --remove-orphans
 
-            echo "✅ Deployment completed!"
+            echo "Deployment completed!"
