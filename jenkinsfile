@@ -13,6 +13,7 @@ pipeline {
             steps {
                 cleanWs()
                 git branch: 'main', url: 'https://github.com/DevenderNarra/smartail-assigment.git'
+                sh 'git pull origin main || true'
             }
         }
 
@@ -42,6 +43,7 @@ EOL
                     # remove running containers (if any)
                     docker rm -f cricket-frontend || true
                     docker rm -f cricket-backend || true
+                    docker rm -f cricket-db || true
 
                     # remove any local images for the frontend/backend repo (all tags)
                     docker images --filter=reference="${DOCKER_USER}/smartail-frontend*" -q | xargs -r docker rmi -f || true
