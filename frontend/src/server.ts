@@ -52,15 +52,14 @@ app.use((req, res, next) => {
  * The server listens on the port defined by the `PORT` environment variable, or defaults to 4000.
  */
 if (isMainModule(import.meta.url)) {
-  const port = process.env['PORT'] || 4000;
-  app.listen(port, (error) => {
-    if (error) {
-      throw error;
-    }
+  const port = process.env['PORT'] || 4200;
+  const host = "0.0.0.0";
 
-    console.log(`Node Express server listening on http://localhost:${port}`);
+  app.listen(Number(port), host, () => {
+    console.log(`✅ Node Express server listening on http://${host}:${port}`);
   });
 }
+
 
 /**
  * Request handler used by the Angular CLI (for dev-server and during build) or Firebase Cloud Functions.

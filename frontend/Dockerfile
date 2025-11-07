@@ -23,8 +23,6 @@ RUN npm ci --omit=dev --ignore-scripts
 # Copy built app
 COPY --from=build /app/dist/project ./dist/project
 
-ENV PORT=4000
-EXPOSE ${PORT}
-
+EXPOSE 4200
 # Start the SSR server
 CMD ["node", "dist/project/server/server.mjs"]
